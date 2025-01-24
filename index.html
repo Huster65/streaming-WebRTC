@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebRTC Streaming</title>
+</head>
+<body>
+  <video id="video" autoplay controls></video>
+  <script>
+    const video = document.getElementById('video');
+    const ws = new WebSocket('ws://localhost:3000');
+
+    let peerConnection = new RTCPeerConnection();
+
+    // Nhận SDP answer từ server
+    ws.onmessage = async (message) => {
+      const data = JSON.parse(message.data);
+      if (data.type === 'answer') {
+        await peerConnection.setRemoteDescription(data);
+      }
+    };
+
+    // Tạo SDP offer và gửi tới server
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        ws.send(JSON.stringify(event.candidate));
+      }
+    };
+
+    peerConnection.ontrack = (event) => {
+      video.srcObject = event.streams[0];
+    };
+
+    async function start() {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      ws.send(JSON.stringify(offer));
+    }
+
+    start();
+  </script>
+</body>
+</html>
